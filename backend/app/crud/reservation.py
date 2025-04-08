@@ -1,12 +1,14 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, select
 from app.models import Reservation, TimeSlot
 from app.config.config import MAX_HEADCOUNT
 from app.models.reservation_time_slot import ReservationTimeSlot
+from app.models.user import User
 from app.schemas.time_slot import TimeSlotSchema
-from app.schemas.reservation import ReservationCreateSchema, ReservationResponseSchema
+from app.schemas.reservation import ReservationCreateSchema, ReservationResponseSchema, ReservationStatus
 from fastapi import HTTPException
 from datetime import date
+from app.core.reservation_utils import create_reservation_response
 
 # 예약 가능한 시간을 조회
 def get_available_times(db: Session):
@@ -26,7 +28,7 @@ def get_available_times(db: Session):
 
 
 # 예약 신청
-def create_reservation(db: Session, req: ReservationCreateSchema):
+def create_reservation(db: Session, req: ReservationCreateSchema, user:User):
     # 시험 시작 최소 3일 전인지 검사
     if (req.start_time.date() - date.today()).days < 3:
         raise HTTPException(status_code=400, detail="예약은 최소 3일전 까지만 가능합니다.")
@@ -51,10 +53,10 @@ def create_reservation(db: Session, req: ReservationCreateSchema):
 
     # 예약정보 생성 및 TimeSlot에 신청인원 업데이트
     reservation = Reservation(
-        company_name=req.company_name,
         start_time=req.start_time,
         end_time=req.end_time,
-        head_count=req.head_count
+        head_count=req.head_count,
+        user_id = user.id
     )
     db.add(reservation)
     db.flush()
@@ -67,5 +69,20 @@ def create_reservation(db: Session, req: ReservationCreateSchema):
         ))
 
     db.commit()
+
+    return create_reservation_response(reservation, user)
+
+
+# 예약 목록 조회
+def get_reservations_by_user(db: Session, user: User):
+    result = db.execute(
+        select(Reservation)
+        .where(Reservation.user_id == user.id)
+        .order_by(Reservation.start_time)
+    ).scalars().all()
+
+    reservations = []
+    for reservation in result:
+        reservations.append(create_reservation_response(reservation, user))
     
-    return ReservationResponseSchema.model_validate(reservation)
+    return reservations
