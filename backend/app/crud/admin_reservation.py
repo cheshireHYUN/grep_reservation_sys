@@ -106,6 +106,27 @@ def update_reservation_by_admin(
     return create_reservation_response(reservation, reservation.user)
 
 
+# 예약 삭제
+def delete_reservation_by_admin(db: Session, reservation_id: int):
+    reservation = db.execute(
+        select(Reservation)
+        .options(
+            joinedload(Reservation.reservation_time_slots).joinedload(ReservationTimeSlot.time_slot)
+        )
+        .where(Reservation.id == reservation_id, Reservation.deleted_at.is_(None))
+    ).unique().scalar_one_or_none() 
+
+    if not reservation:
+        raise HTTPException(status_code=404, detail="예약을 찾을 수 없습니다.")
+
+    if reservation.is_confirmed:
+        for rts in reservation.reservation_time_slots:
+            rts.time_slot.confirmed_headcount -= reservation.head_count
+
+    reservation.deleted_at = datetime.now()
+    db.commit()
+
+
 
 # == Admin Util ==
 def update_reservation_fields(reservation: Reservation, update_data: ReservationUpdateSchema):

@@ -2,7 +2,6 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.db.session import get_db
-from app.core.auth import get_current_user
 import app.crud.admin_reservation as admin_service
 from app.schemas.admin_reservation import AllReservationResponseSchema
 from app.schemas.reservation import ReservationUpdateSchema
@@ -25,3 +24,8 @@ def update_reservation(reservation_id: int, request: ReservationUpdateSchema, db
 @router.delete("/{reservation_id}/confirmation", summary="예약 확정 취소")
 def cancel_confirm_reservation(reservation_id: int, db: Session = Depends(get_db)):
     return admin_service.cancel_confirm_reservation_by_admin(db, reservation_id)
+
+@router.delete("/{reservation_id}", summary="예약 삭제 (soft delete)")
+def delete_reservation(reservation_id: int, db: Session = Depends(get_db)):
+    admin_service.delete_reservation_by_admin(db, reservation_id)
+    return {"msg": "삭제되었습니다."}
