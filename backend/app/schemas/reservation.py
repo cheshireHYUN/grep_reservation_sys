@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic import Field
 from app.schemas.base import UTCBaseModel
 from datetime import datetime
@@ -23,3 +24,9 @@ class ReservationResponseSchema(UTCBaseModel):
     end_time: datetime
     status: ReservationStatus
     created_at: datetime
+
+# 예약 수정
+class ReservationUpdateSchema(UTCBaseModel):
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    head_count: Optional[int] = None

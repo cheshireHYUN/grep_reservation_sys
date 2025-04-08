@@ -4,9 +4,9 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.core.auth import get_current_user
 from app.models.user import User
-from app.schemas.reservation import ReservationCreateSchema, ReservationResponseSchema
+from app.schemas.reservation import ReservationCreateSchema, ReservationResponseSchema, ReservationUpdateSchema
 from app.schemas.time_slot import TimeSlotSchema
-from app.crud.reservation import create_reservation, get_available_times, get_reservations_by_user
+from app.crud.reservation import create_reservation, get_available_times, get_reservations_by_user, update_reservation
 
 router = APIRouter()
 
@@ -24,7 +24,18 @@ def make_reservation(req: ReservationCreateSchema, db: Session = Depends(get_db)
     reservation = create_reservation(db, req, user)
     return reservation
 
-@router.get("/reservations", response_model=List[ReservationResponseSchema], summary="예약한 목록 조회")
-async def get_reservations(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+@router.get("", response_model=List[ReservationResponseSchema], summary="예약한 목록 조회")
+def get_reservations(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     reservations = get_reservations_by_user(db, user)
     return reservations
+
+@router.patch("/{reservation_id}", response_model=ReservationResponseSchema)
+def edit_reservation(
+    reservation_id: int,
+    req: ReservationUpdateSchema,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user)):
+    
+    updated_reservation = update_reservation(db, reservation_id, user, req)
+
+    return updated_reservation
