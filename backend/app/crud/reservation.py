@@ -7,7 +7,7 @@ from app.models.user import User
 from app.schemas.time_slot import TimeSlotSchema
 from app.schemas.reservation import ReservationCreateSchema, ReservationResponseSchema, ReservationStatus, ReservationUpdateSchema
 from fastapi import HTTPException
-from datetime import date
+from datetime import date, datetime
 
 # 예약 가능한 시간을 조회
 def get_available_times(db: Session):
@@ -50,7 +50,12 @@ def create_reservation(db: Session, req: ReservationCreateSchema, user:User):
 def get_reservations_by_user(db: Session, user: User):
     result = db.execute(
         select(Reservation)
-        .where(Reservation.user_id == user.id)
+        .where(
+            and_(
+                Reservation.user_id == user.id,
+                Reservation.deleted_at == None
+            )
+        )
         .order_by(Reservation.start_time)
     ).scalars().all()
 
@@ -71,7 +76,8 @@ def update_reservation(
         select(Reservation).where(
             and_(
                 Reservation.id == reservation_id,
-                Reservation.user_id == user.id
+                Reservation.user_id == user.id,
+                Reservation.deleted_at == None
             )
         )
     ).scalar_one_or_none()
@@ -97,7 +103,34 @@ def update_reservation(
     return create_reservation_response(reservation, user)
 
 
+# 예약 삭제
+def delete_reservation(
+    db: Session,
+    reservation_id: int,
+    user: User):
+    reservation = db.execute(
+        select(Reservation).where(
+            and_(
+                Reservation.id == reservation_id,
+                Reservation.user_id == user.id,
+                Reservation.deleted_at == None
+            )
+        )
+    ).scalar_one_or_none()
 
+    if reservation is None:
+        raise HTTPException(status_code=404, detail="예약을 찾을 수 없습니다.")
+
+    if reservation.is_confirmed:
+        raise HTTPException(status_code=400, detail="확정된 예약은 삭제할 수 없습니다.")
+
+    # 기존 예약 타임슬롯에서 인원수 차감 및 관계 삭제
+    remove_reservation_from_slots(db, reservation)
+
+    # soft delete
+    reservation.deleted_at = datetime.now()
+
+    db.commit()
 
 
 # == utils ==
