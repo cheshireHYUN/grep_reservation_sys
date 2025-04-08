@@ -15,12 +15,12 @@ def get_available_times_api(db: Session = Depends(get_db)):
     available_times = get_available_times(db)
 
     if not available_times:
-        raise HTTPException(status_code=404, detail="No available times found")
+        raise HTTPException(status_code=404, detail="예약가능한 시간이 존재하지 않음")
     
     return available_times
 
 @router.post("", response_model=ReservationResponseSchema, summary="예약 신청")
-def make_reservation(req: ReservationCreateSchema, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def create_reservation(req: ReservationCreateSchema, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     reservation = create_reservation(db, req, user)
     return reservation
 
@@ -29,8 +29,8 @@ def get_reservations(db: Session = Depends(get_db), user: User = Depends(get_cur
     reservations = get_reservations_by_user(db, user)
     return reservations
 
-@router.patch("/{reservation_id}", response_model=ReservationResponseSchema)
-def edit_reservation(
+@router.patch("/{reservation_id}", response_model=ReservationResponseSchema, summary="예약 수정")
+def update_reservation(
     reservation_id: int,
     req: ReservationUpdateSchema,
     db: Session = Depends(get_db),
@@ -39,3 +39,4 @@ def edit_reservation(
     updated_reservation = update_reservation(db, reservation_id, user, req)
 
     return updated_reservation
+
