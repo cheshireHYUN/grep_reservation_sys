@@ -6,6 +6,7 @@ from app.db.base import Base
 from app.models.reservation import Reservation
 from app.models.time_slot import TimeSlot
 from app.models.reservation_time_slot import ReservationTimeSlot
+from app.models.user import User
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

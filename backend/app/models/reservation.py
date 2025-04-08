@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.base import Base
@@ -8,7 +8,6 @@ class Reservation(Base):
     __tablename__ = "reservation"
 
     id = Column(Integer, primary_key=True, index=True)
-    company_name = Column(String, nullable=False)
     start_time = Column(DateTime, nullable=False)
     end_time = Column(DateTime, nullable=False)
     head_count = Column(Integer, nullable=False)
@@ -17,8 +16,10 @@ class Reservation(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
     deleted_at = Column(DateTime, nullable=True)
 
+    user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    user = relationship("User", back_populates="reservations")
+
     reservation_time_slots = relationship(
         "ReservationTimeSlot",
-        back_populates="reservation",
-        cascade="all, delete-orphan"
+        back_populates="reservation"
     )
