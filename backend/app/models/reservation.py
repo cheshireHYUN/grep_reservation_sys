@@ -2,7 +2,7 @@ from sqlalchemy import Column, ForeignKey, Integer, String, DateTime, Boolean
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.base import Base
-from app.models.reservation_time_slot import reservation_time_slot_table
+from app.models.reservation_time_slot import ReservationTimeSlot
 
 # reservation(예약) 테이블
 class Reservation(Base):
@@ -17,9 +17,9 @@ class Reservation(Base):
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
     deleted_at = Column(DateTime, nullable=True)
-    
-    time_slots = relationship(
-        "TimeSlot",
-        secondary=reservation_time_slot_table,
-        back_populates="reservations"
+
+    reservation_time_slots = relationship(
+        "ReservationTimeSlot",
+        back_populates="reservation",
+        cascade="all, delete-orphan"
     )
