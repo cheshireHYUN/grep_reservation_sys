@@ -82,11 +82,11 @@ def update_reservation(
     if reservation.is_confirmed:
         raise HTTPException(status_code=400, detail="확정된 예약은 수정할 수 없습니다.")
     
-    # 수정할 필드를 반영
-    update_reservation_fields(reservation, req)
-
     # 기존 타임슬롯의 인원수, 관계 삭제
     remove_reservation_from_slots(db,reservation)
+    
+    # 수정할 필드를 반영
+    update_reservation_fields(reservation, req)
 
     # 새로운 타임슬롯 등록 및 카운트 증가
     new_slots = validate_and_get_time_slots(db, reservation.start_time, reservation.end_time, reservation.head_count)
