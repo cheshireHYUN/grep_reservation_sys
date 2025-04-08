@@ -1,8 +1,7 @@
-from sqlalchemy import Column, ForeignKey, Integer, String, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, Boolean
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.base import Base
-from app.models.reservation_time_slot import ReservationTimeSlot
 
 # reservation(예약) 테이블
 class Reservation(Base):

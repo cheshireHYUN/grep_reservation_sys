@@ -1,7 +1,6 @@
 from sqlalchemy import Column, Integer, DateTime
 from sqlalchemy.orm import relationship
 from app.db.base import Base
-from app.models.reservation_time_slot import ReservationTimeSlot
 
 # TimeSlot(시간) 테이블
 class TimeSlot(Base):

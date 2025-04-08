@@ -1,13 +1,12 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
-from app.models import reservation_time_slot
-from app.models.time_slot import TimeSlot
-from app.models.reservation import Reservation
+from app.models import Reservation, TimeSlot
 from app.config.config import MAX_HEADCOUNT
+from app.models.reservation_time_slot import ReservationTimeSlot
 from app.schemas.time_slot import TimeSlotSchema
-from app.schemas.reservation import ReservationCreateSchema
+from app.schemas.reservation import ReservationCreateSchema, ReservationResponseSchema
 from fastapi import HTTPException
-from datetime import datetime, timedelta, timezone
+from datetime import date
 
 # 예약 가능한 시간을 조회
 def get_available_times(db: Session):
@@ -29,7 +28,7 @@ def get_available_times(db: Session):
 # 예약 신청
 def create_reservation(db: Session, req: ReservationCreateSchema):
     # 시험 시작 최소 3일 전인지 검사
-    if (req.start_time - datetime.now(timezone.utc)) < timedelta(days=3):
+    if (req.start_time.date() - date.today()).days < 3:
         raise HTTPException(status_code=400, detail="예약은 최소 3일전 까지만 가능합니다.")
 
     time_slots = db.query(TimeSlot).filter(
@@ -61,12 +60,12 @@ def create_reservation(db: Session, req: ReservationCreateSchema):
     db.flush()
 
     for time_slot in time_slots:
-        time_slot.confirmed_headcount += req.head_count #변경감지?
-        db.add(reservation_time_slot(
+        time_slot.confirmed_headcount += req.head_count
+        db.add(ReservationTimeSlot(
             reservation_id=reservation.id,
             time_slot_id=time_slot.id
         ))
 
     db.commit()
-    db.refresh(reservation)
-    return reservation
+    
+    return ReservationResponseSchema.model_validate(reservation)
