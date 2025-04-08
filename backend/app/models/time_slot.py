@@ -13,6 +13,5 @@ class TimeSlot(Base):
 
     reservation_time_slots = relationship(
         "ReservationTimeSlot",
-        back_populates="time_slot",
-        cascade="all, delete-orphan"
+        back_populates="time_slot"
     )
