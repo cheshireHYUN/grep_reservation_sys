@@ -1,2 +1,2 @@
 from .reservation import Reservation
-from .timeslot import TimeSlot
+from .time_slot import TimeSlot
