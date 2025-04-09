@@ -5,12 +5,12 @@ from app.db.session import get_db
 from app.core.auth import get_current_user
 from app.models.user import User
 from app.schemas.reservation import ReservationCreateSchema, ReservationResponseSchema, ReservationUpdateSchema
-from app.schemas.time_slot import TimeSlotSchema
+from app.schemas.time_slot import TimeSlotResponseSchema
 import app.crud.reservation as reservation_service
 
 router = APIRouter()
 
-@router.get("/available-times", response_model=List[TimeSlotSchema], summary="예약 가능한 시간 조회")
+@router.get("/available-times", response_model=List[TimeSlotResponseSchema], summary="예약 가능한 시간 조회", description="3일 이후의 예약가능 시간을 조회합니다.")
 def get_available_times_api(db: Session = Depends(get_db)):
     available_times = reservation_service.get_available_times(db)
 
@@ -19,17 +19,17 @@ def get_available_times_api(db: Session = Depends(get_db)):
     
     return available_times
 
-@router.post("", response_model=ReservationResponseSchema, summary="예약 신청")
+@router.post("", response_model=ReservationResponseSchema, summary="예약 신청", description="날짜범위를 입력하여 예약을 신청합니다.")
 def create_reservation(req: ReservationCreateSchema, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     reservation = reservation_service.create_reservation(db, req, user)
     return reservation
 
-@router.get("", response_model=List[ReservationResponseSchema], summary="예약한 목록 조회")
+@router.get("", response_model=List[ReservationResponseSchema], summary="예약한 목록 조회", description="로그인한 유저의 예약목록을 신청순으로 조회합니다.")
 def get_reservations(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     reservations = reservation_service.get_reservations_by_user(db, user)
     return reservations
 
-@router.patch("/{reservation_id}", response_model=ReservationResponseSchema, summary="예약 수정")
+@router.patch("/{reservation_id}", response_model=ReservationResponseSchema, summary="예약 수정", description="인원수 또는 날짜를 입력해 예약을 수정합니다.")
 def update_reservation(
     reservation_id: int,
     req: ReservationUpdateSchema,
@@ -40,7 +40,7 @@ def update_reservation(
 
     return updated_reservation
 
-@router.delete("/{reservation_id}", summary="예약 삭제")
+@router.delete("/{reservation_id}", summary="예약 삭제", description="예약을 삭제합니다.")
 def delete_reservation_api(
     reservation_id: int,
     db: Session = Depends(get_db),

@@ -1,11 +1,11 @@
 from typing import Optional
 from pydantic import Field
-from app.schemas.base import UTCBaseModel
+from app.schemas.base import KSTBaseModel
 from datetime import datetime
 from app.schemas.reservation import ReservationStatus
 
 # 전체 예약목록 조회
-class AllReservationResponseSchema(UTCBaseModel):
+class ReservationResponseSchema(KSTBaseModel):
     id: int
     user_id: int
     user_email: str

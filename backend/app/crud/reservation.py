@@ -4,22 +4,28 @@ from app.models import Reservation, TimeSlot
 from app.config.config import MAX_HEADCOUNT
 from app.models.reservation_time_slot import ReservationTimeSlot
 from app.models.user import User
-from app.schemas.time_slot import TimeSlotSchema
+from app.schemas.time_slot import TimeSlotResponseSchema
 from app.schemas.reservation import ReservationCreateSchema, ReservationResponseSchema, ReservationStatus, ReservationUpdateSchema
 from fastapi import HTTPException
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 # 예약 가능한 시간을 조회
 def get_available_times(db: Session):
-    time_slots = db.query(TimeSlot).filter(
-        (MAX_HEADCOUNT - TimeSlot.confirmed_headcount) > 0
-    ).all()
+    three_days_later = datetime.now().date() + timedelta(days=3)
+    print(three_days_later)
+    time_slots = db.execute(
+        select(TimeSlot)
+        .where(TimeSlot.start_time >= three_days_later)
+        .order_by(TimeSlot.start_time)
+    ).scalars().all()
 
     available_times = []
     for time_slot in time_slots:
-        available_times.append(TimeSlotSchema(
+        available_times.append(TimeSlotResponseSchema(
+            id = time_slot.id,
             start_time = time_slot.start_time,
             end_time = time_slot.end_time,
+            is_reservable= MAX_HEADCOUNT > time_slot.confirmed_headcount,
             available_headcount = MAX_HEADCOUNT - time_slot.confirmed_headcount
         ))
     
@@ -38,9 +44,9 @@ def create_reservation(db: Session, req: ReservationCreateSchema, user:User):
         user_id=user.id
     )
     db.add(reservation)
-    db.flush()  # ID 필요
+    db.flush()
 
-    apply_reservation_to_slots(db, reservation.id, time_slots, req.head_count)
+    apply_reservation_to_slots(db, reservation.id, time_slots)
     db.commit()
 
     return create_reservation_response(reservation, user)
@@ -56,7 +62,7 @@ def get_reservations_by_user(db: Session, user: User):
                 Reservation.deleted_at == None
             )
         )
-        .order_by(Reservation.start_time)
+        .order_by(Reservation.created_at)
     ).scalars().all()
 
     reservations = []
@@ -88,15 +94,15 @@ def update_reservation(
     if reservation.is_confirmed:
         raise HTTPException(status_code=400, detail="확정된 예약은 수정할 수 없습니다.")
     
-    # 기존 타임슬롯의 인원수, 관계 삭제
+    # 기존 타임슬롯 관계 삭제
     remove_reservation_from_slots(db,reservation)
     
     # 수정할 필드를 반영
     update_reservation_fields(reservation, req)
 
-    # 새로운 타임슬롯 등록 및 카운트 증가
+    # 새로운 타임슬롯 검사 및 생성
     new_slots = validate_and_get_time_slots(db, reservation.start_time, reservation.end_time, reservation.head_count)
-    apply_reservation_to_slots(db, reservation_id, new_slots, reservation.head_count)
+    apply_reservation_to_slots(db, reservation_id, new_slots)
 
     db.commit()
 
@@ -124,7 +130,7 @@ def delete_reservation(
     if reservation.is_confirmed:
         raise HTTPException(status_code=400, detail="확정된 예약은 삭제할 수 없습니다.")
 
-    # 기존 예약 타임슬롯에서 인원수 차감 및 관계 삭제
+    # 기존 예약 타임슬롯 관계 삭제
     remove_reservation_from_slots(db, reservation)
 
     # soft delete
@@ -133,7 +139,7 @@ def delete_reservation(
     db.commit()
 
 
-# == utils ==
+# == User Util ==
 
 # 부분 업데이트를 위한 처리 유틸
 def update_reservation_fields(reservation: Reservation, update_data: ReservationUpdateSchema):
@@ -144,7 +150,7 @@ def update_reservation_fields(reservation: Reservation, update_data: Reservation
     if update_data.head_count is not None:
         reservation.head_count = update_data.head_count
 
-# 타임슬롯 유효성을 검사하는 유틸
+# 타임슬롯 유효성을 검사하고 리턴
 def validate_and_get_time_slots(
     db: Session,
     start_time,
@@ -176,32 +182,22 @@ def validate_and_get_time_slots(
     return time_slots
 
 
-# 타임슬롯에 예약인원을 반영하고 관계를 저장하는 유틸
+# 타임슬롯과 예약의 연관관계를 새로 저장하는 유틸
 def apply_reservation_to_slots(
     db: Session,
     reservation_id: int,
-    time_slots: list[TimeSlot],
-    head_count: int):
+    time_slots: list[TimeSlot]):
 
     for slot in time_slots:
-        slot.confirmed_headcount += head_count
         db.add(ReservationTimeSlot(
             reservation_id=reservation_id,
             time_slot_id=slot.id
         ))
 
-# 기존 예약의 타임슬롯을 초기화하고, 인원수도 차감하는 유틸
+# 기존 예약의 타임슬롯을 삭제하는 유틸
 def remove_reservation_from_slots(
     db: Session,
     reservation: Reservation):
-
-    old_slots = db.execute(
-        select(TimeSlot).join(ReservationTimeSlot)
-        .where(ReservationTimeSlot.reservation_id == reservation.id)
-    ).scalars().all()
-
-    for slot in old_slots:
-        slot.confirmed_headcount -= reservation.head_count
 
     db.execute(
         delete(ReservationTimeSlot).where(ReservationTimeSlot.reservation_id == reservation.id)
