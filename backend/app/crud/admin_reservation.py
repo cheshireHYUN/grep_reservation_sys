@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy import and_, delete, select
 from app.crud.reservation import create_reservation_response
 from app.models import Reservation, TimeSlot
@@ -63,11 +64,21 @@ def confirm_reservation_by_admin(db: Session, reservation_id: int):
                 detail=f"[{timeslot.id}] {timeslot.start_time}~{timeslot.end_time} 시간대의 예약 인원이 50,000명을 초과합니다."
             )
         
-    for rts in reservation.reservation_time_slots:
-        rts.time_slot.confirmed_headcount += reservation.head_count
-    reservation.is_confirmed = True
+    try:
+        for rts in reservation.reservation_time_slots:
+            rts.time_slot.confirmed_headcount += reservation.head_count
 
-    db.commit()
+        reservation.is_confirmed = True
+
+        db.commit()
+        db.refresh(reservation)
+
+    except StaleDataError:
+        # 여러 관리자 동시 수정시 에러
+        db.rollback()
+        raise HTTPException(status_code=409, detail="다른 관리자에 의해 예약이 먼저 확정되었습니다. 다시 시도해주세요.")
+        
+
     db.refresh(reservation)
 
 
