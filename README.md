@@ -24,7 +24,7 @@ DATABASE_URL=postgresql://postgres:{password}@localhost:5432/exam_reservation  #
 ### 4. 실행 방법
 (1) 데이터베이스 및 테스트 데이터 생성
 ```bash
-python create_tables.py  
+python create_table.py  
 ```
 
 (2) 서버 실행
