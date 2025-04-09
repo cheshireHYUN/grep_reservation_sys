@@ -1,12 +1,12 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, delete, select
+from app.exception.api_exception import APIException
 from app.models import Reservation, TimeSlot
 from app.config.config import MAX_HEADCOUNT
 from app.models.reservation_time_slot import ReservationTimeSlot
 from app.models.user import User
 from app.schemas.time_slot import TimeSlotResponseSchema
 from app.schemas.reservation import ReservationCreateSchema, ReservationResponseSchema, ReservationStatus, ReservationUpdateSchema
-from fastapi import HTTPException
 from datetime import date, datetime, timedelta
 
 # 예약 가능한 시간을 조회
@@ -47,7 +47,6 @@ def create_reservation(db: Session, req: ReservationCreateSchema, user:User):
     db.flush()
 
     apply_reservation_to_slots(db, reservation.id, time_slots)
-    db.commit()
 
     return create_reservation_response(reservation, user)
 
@@ -89,10 +88,10 @@ def update_reservation(
     ).scalar_one_or_none()
 
     if reservation is None:
-        raise HTTPException(status_code=404, detail="예약을 찾을 수 없습니다.")
+        raise APIException(status_code=404, message="예약을 찾을 수 없습니다.")
 
     if reservation.is_confirmed:
-        raise HTTPException(status_code=400, detail="확정된 예약은 수정할 수 없습니다.")
+        raise APIException(status_code=400, message="확정된 예약은 수정할 수 없습니다.")
     
     # 기존 타임슬롯 관계 삭제
     remove_reservation_from_slots(db,reservation)
@@ -103,8 +102,6 @@ def update_reservation(
     # 새로운 타임슬롯 검사 및 생성
     new_slots = validate_and_get_time_slots(db, reservation.start_time, reservation.end_time, reservation.head_count)
     apply_reservation_to_slots(db, reservation_id, new_slots)
-
-    db.commit()
 
     return create_reservation_response(reservation, user)
 
@@ -125,18 +122,16 @@ def delete_reservation(
     ).scalar_one_or_none()
 
     if reservation is None:
-        raise HTTPException(status_code=404, detail="예약을 찾을 수 없습니다.")
+        raise APIException(status_code=404, message="예약을 찾을 수 없습니다.")
 
     if reservation.is_confirmed:
-        raise HTTPException(status_code=400, detail="확정된 예약은 삭제할 수 없습니다.")
+        raise APIException(status_code=400, message="확정된 예약은 삭제할 수 없습니다.")
 
     # 기존 예약 타임슬롯 관계 삭제
     remove_reservation_from_slots(db, reservation)
 
     # soft delete
     reservation.deleted_at = datetime.now()
-
-    db.commit()
 
 
 # == User Util ==
@@ -158,7 +153,7 @@ def validate_and_get_time_slots(
     head_count: int) -> list[TimeSlot]:
 
     if (start_time.date() - date.today()).days < 3:
-        raise HTTPException(status_code=400, detail="예약은 최소 3일전까지만 신청 및 수정이 가능합니다.")
+        raise APIException(status_code=400, message="예약은 최소 3일전까지만 신청 및 수정이 가능합니다.")
 
     time_slots = db.execute(
         select(TimeSlot).where(
@@ -171,13 +166,13 @@ def validate_and_get_time_slots(
 
     expected_count = int((end_time - start_time).total_seconds() // 3600)
     if not time_slots or len(time_slots) < expected_count:
-        raise HTTPException(status_code=404, detail="신청 불가능한 시간이 포함되어 있습니다.")
+        raise APIException(status_code=404, message="신청 불가능한 시간이 포함되어 있습니다.")
 
     # 인원 초과 확인
     for slot in time_slots:
         available = MAX_HEADCOUNT - slot.confirmed_headcount
         if available < head_count:
-            raise HTTPException(status_code=400, detail=f"{slot.start_time} ~ {slot.end_time} 는 {available}명 이하까지만 신청 가능합니다.")
+            raise APIException(status_code=400, message=f"{slot.start_time} ~ {slot.end_time} 는 {available}명 이하까지만 신청 가능합니다.")
 
     return time_slots
 
