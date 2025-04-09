@@ -70,16 +70,11 @@ def confirm_reservation_by_admin(db: Session, reservation_id: int):
 
         reservation.is_confirmed = True
 
-        db.commit()
-        db.refresh(reservation)
-
     except StaleDataError:
         # 여러 관리자 동시 수정시 에러
         db.rollback()
         raise HTTPException(status_code=409, detail="다른 관리자에 의해 예약이 먼저 확정되었습니다. 다시 시도해주세요.")
         
-
-    db.refresh(reservation)
 
 
 # 예약 수정
@@ -113,8 +108,6 @@ def update_reservation_by_admin(
     new_slots = validate_and_get_time_slots(db, reservation.start_time, reservation.end_time, reservation.head_count)
     apply_reservation_to_slots(db, reservation, new_slots)
 
-    db.commit()
-
     return create_reservation_response(reservation, reservation.user)
 
 
@@ -136,7 +129,36 @@ def delete_reservation_by_admin(db: Session, reservation_id: int):
             rts.time_slot.confirmed_headcount -= reservation.head_count
 
     reservation.deleted_at = datetime.now()
-    db.commit()
+
+
+# 확정 취소
+def cancel_confirm_reservation_by_admin(db: Session, reservation_id: int):
+    reservation = db.execute(
+        select(Reservation)
+        .options(
+            joinedload(Reservation.reservation_time_slots)
+            .joinedload(ReservationTimeSlot.time_slot)
+        )
+        .where(
+            Reservation.id == reservation_id,
+            Reservation.deleted_at.is_(None)
+        )
+    ).unique().scalar_one_or_none()
+
+    if reservation is None:
+        raise HTTPException(status_code=404, detail="예약을 찾을 수 없습니다.")
+
+    if not reservation.is_confirmed:
+        raise HTTPException(status_code=400, detail="이미 확정이 취소된 예약입니다.")
+
+    for rts in reservation.reservation_time_slots:
+        rts.time_slot.confirmed_headcount -= reservation.head_count
+        if rts.time_slot.confirmed_headcount < 0:
+            rts.time_slot.confirmed_headcount = 0 #오류방지
+
+    reservation.is_confirmed = False
+
+    return create_reservation_response(reservation, reservation.user)
 
 
 
@@ -198,34 +220,3 @@ def apply_reservation_to_slots(
             time_slot_id=slot.id
         ))
 
-# 확정 취소
-def cancel_confirm_reservation_by_admin(db: Session, reservation_id: int):
-    reservation = db.execute(
-        select(Reservation)
-        .options(
-            joinedload(Reservation.reservation_time_slots)
-            .joinedload(ReservationTimeSlot.time_slot)
-        )
-        .where(
-            Reservation.id == reservation_id,
-            Reservation.deleted_at.is_(None)
-        )
-    ).unique().scalar_one_or_none()
-
-    if reservation is None:
-        raise HTTPException(status_code=404, detail="예약을 찾을 수 없습니다.")
-
-    if not reservation.is_confirmed:
-        raise HTTPException(status_code=400, detail="이미 확정이 취소된 예약입니다.")
-
-    for rts in reservation.reservation_time_slots:
-        rts.time_slot.confirmed_headcount -= reservation.head_count
-        if rts.time_slot.confirmed_headcount < 0:
-            rts.time_slot.confirmed_headcount = 0 #오류방지
-
-    reservation.is_confirmed = False
-
-    db.commit()
-    db.refresh(reservation)
-
-    return create_reservation_response(reservation, reservation.user)

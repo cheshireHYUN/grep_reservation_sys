@@ -47,7 +47,6 @@ def create_reservation(db: Session, req: ReservationCreateSchema, user:User):
     db.flush()
 
     apply_reservation_to_slots(db, reservation.id, time_slots)
-    db.commit()
 
     return create_reservation_response(reservation, user)
 
@@ -104,8 +103,6 @@ def update_reservation(
     new_slots = validate_and_get_time_slots(db, reservation.start_time, reservation.end_time, reservation.head_count)
     apply_reservation_to_slots(db, reservation_id, new_slots)
 
-    db.commit()
-
     return create_reservation_response(reservation, user)
 
 
@@ -135,8 +132,6 @@ def delete_reservation(
 
     # soft delete
     reservation.deleted_at = datetime.now()
-
-    db.commit()
 
 
 # == User Util ==
