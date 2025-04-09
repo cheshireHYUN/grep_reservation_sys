@@ -32,16 +32,32 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-(CF) postman / 자세한 API 문서
+(CF) 자세한 API 문서
 - Swagger: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
 
 </br></br>
 
 ## 테스트 방법
-(1) 제일 먼저, 로그인 API를 실행합니다.
-- 현재 임시로그인 형태입니다.
+(1) 제일 먼저, 회원가입 API를 실행합니다.
+- 현재 임시회원가입 형태입니다.
 - User가 사용하는 API들은 헤더의 Authorization 액세스토큰을 파싱하여 로그인중인 유저를 판단합니다. 따라서 로그인 API를 가장 먼저 실행후 응답으로 오는 액세스토큰값을 활용하여 나머지 API를 테스트 할 수 있습니다.
+
+<details>
+  <summary>자세한 방법</summary>
+  
+  ![image](https://github.com/user-attachments/assets/e8cd4fdf-7129-4ed2-918d-c56f55eb8b3f)
+  
+  </br>
+  위와같이 회원가입API 실행의 응답으로 access-token을 획득합니다.
+  </br></br>
+
+  ![Image](https://github.com/user-attachments/assets/3941af99-8ff0-4c1f-94b2-8f34cb1b8da4)
+  
+  </br>
+  획득한 토큰값을 요청헤더에 포함하여 유저API를 사용할 수 있습니다.
+
+</details>
 
 (2) 어드민 API는 토큰이 필요하지 않습니다. 따라서 (1)을 진행한 뒤엔 어드민과 고객 API를 자유롭게 테스트 할 수 있습니다.
 
