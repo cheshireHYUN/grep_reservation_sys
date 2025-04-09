@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy import and_, delete, select
 from app.crud.reservation import create_reservation_response
+from app.exception.api_exception import APIException
 from app.models import Reservation, TimeSlot
 from app.config.config import MAX_HEADCOUNT
 from app.config.config import MAX_HEADCOUNT
@@ -9,7 +10,6 @@ from app.models.reservation_time_slot import ReservationTimeSlot
 from app.models.user import User
 from app.schemas.reservation import ReservationStatus, ReservationUpdateSchema
 from app.schemas.admin_reservation import ReservationResponseSchema
-from fastapi import HTTPException
 from datetime import date, datetime
 
 # 전체예약목록 조회
@@ -50,18 +50,18 @@ def confirm_reservation_by_admin(db: Session, reservation_id: int):
     ).unique().scalar_one_or_none()
 
     if not reservation:
-        raise HTTPException(status_code=404, detail="예약을 찾을 수 없습니다.")
+        raise APIException(status_code=404, message="예약을 찾을 수 없습니다.")
 
     if reservation.is_confirmed:
-        raise HTTPException(status_code=400, detail="이미 확정된 예약입니다.")
+        raise APIException(status_code=400, message="이미 확정된 예약입니다.")
 
     # 인원 초과 여부 확인
     for rts in reservation.reservation_time_slots:
         timeslot = rts.time_slot
         if timeslot.confirmed_headcount + reservation.head_count > MAX_HEADCOUNT:
-            raise HTTPException(
+            raise APIException(
                 status_code=400,
-                detail=f"[{timeslot.id}] {timeslot.start_time}~{timeslot.end_time} 시간대의 예약 인원이 50,000명을 초과합니다."
+                message=f"[{timeslot.id}] {timeslot.start_time}~{timeslot.end_time} 시간대의 예약 인원이 50,000명을 초과합니다."
             )
         
     try:
@@ -73,7 +73,7 @@ def confirm_reservation_by_admin(db: Session, reservation_id: int):
     except StaleDataError:
         # 여러 관리자 동시 수정시 에러
         db.rollback()
-        raise HTTPException(status_code=409, detail="다른 관리자에 의해 예약이 먼저 확정되었습니다. 다시 시도해주세요.")
+        raise APIException(status_code=409, message="다른 관리자에 의해 예약이 먼저 확정되었습니다. 다시 시도해주세요.")
         
 
 
@@ -93,10 +93,10 @@ def update_reservation_by_admin(
     ).scalar_one_or_none()
 
     if reservation is None:
-        raise HTTPException(status_code=404, detail="예약을 찾을 수 없습니다.")
+        raise APIException(status_code=404, message="예약을 찾을 수 없습니다.")
     
     if reservation.is_confirmed:
-        raise HTTPException(status_code=404, detail="확정된 예약은 수정할 수 없습니다. 먼저 확정을 취소한 후 다시 시도해주세요.")
+        raise APIException(status_code=404, message="확정된 예약은 수정할 수 없습니다. 먼저 확정을 취소한 후 다시 시도해주세요.")
     
     # 기존 데이터 삭제
     remove_reservation_from_slots(db,reservation)
@@ -122,7 +122,7 @@ def delete_reservation_by_admin(db: Session, reservation_id: int):
     ).unique().scalar_one_or_none() 
 
     if not reservation:
-        raise HTTPException(status_code=404, detail="예약을 찾을 수 없습니다.")
+        raise APIException(status_code=404, message="예약을 찾을 수 없습니다.")
 
     if reservation.is_confirmed:
         for rts in reservation.reservation_time_slots:
@@ -146,10 +146,10 @@ def cancel_confirm_reservation_by_admin(db: Session, reservation_id: int):
     ).unique().scalar_one_or_none()
 
     if reservation is None:
-        raise HTTPException(status_code=404, detail="예약을 찾을 수 없습니다.")
+        raise APIException(status_code=404, message="예약을 찾을 수 없습니다.")
 
     if not reservation.is_confirmed:
-        raise HTTPException(status_code=400, detail="이미 확정이 취소된 예약입니다.")
+        raise APIException(status_code=400, message="이미 확정이 취소된 예약입니다.")
 
     for rts in reservation.reservation_time_slots:
         rts.time_slot.confirmed_headcount -= reservation.head_count
@@ -199,12 +199,12 @@ def validate_and_get_time_slots(
 
     expected_count = int((end_time - start_time).total_seconds() // 3600)
     if not time_slots or len(time_slots) < expected_count:
-        raise HTTPException(status_code=404, detail="신청 불가능한 시간이 포함되어 있습니다.")
+        raise APIException(status_code=404, message="신청 불가능한 시간이 포함되어 있습니다.")
 
     for slot in time_slots:
         available = MAX_HEADCOUNT - slot.confirmed_headcount
         if available < head_count:
-            raise HTTPException(status_code=400, detail=f"{slot.start_time} ~ {slot.end_time} 는 {available}명 이하까지만 신청 가능합니다.")
+            raise APIException(status_code=400, message=f"{slot.start_time} ~ {slot.end_time} 는 {available}명 이하까지만 신청 가능합니다.")
 
     return time_slots
 
