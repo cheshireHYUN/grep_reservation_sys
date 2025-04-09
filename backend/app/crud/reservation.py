@@ -4,7 +4,7 @@ from app.models import Reservation, TimeSlot
 from app.config.config import MAX_HEADCOUNT
 from app.models.reservation_time_slot import ReservationTimeSlot
 from app.models.user import User
-from app.schemas.time_slot import TimeSlotSchema
+from app.schemas.time_slot import TimeSlotResponseSchema
 from app.schemas.reservation import ReservationCreateSchema, ReservationResponseSchema, ReservationStatus, ReservationUpdateSchema
 from fastapi import HTTPException
 from datetime import date, datetime, timedelta
@@ -21,7 +21,7 @@ def get_available_times(db: Session):
 
     available_times = []
     for time_slot in time_slots:
-        available_times.append(TimeSlotSchema(
+        available_times.append(TimeSlotResponseSchema(
             id = time_slot.id,
             start_time = time_slot.start_time,
             end_time = time_slot.end_time,
@@ -62,7 +62,7 @@ def get_reservations_by_user(db: Session, user: User):
                 Reservation.deleted_at == None
             )
         )
-        .order_by(Reservation.start_time)
+        .order_by(Reservation.created_at)
     ).scalars().all()
 
     reservations = []

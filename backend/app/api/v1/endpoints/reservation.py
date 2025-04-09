@@ -5,12 +5,12 @@ from app.db.session import get_db
 from app.core.auth import get_current_user
 from app.models.user import User
 from app.schemas.reservation import ReservationCreateSchema, ReservationResponseSchema, ReservationUpdateSchema
-from app.schemas.time_slot import TimeSlotSchema
+from app.schemas.time_slot import TimeSlotResponseSchema
 import app.crud.reservation as reservation_service
 
 router = APIRouter()
 
-@router.get("/available-times", response_model=List[TimeSlotSchema], summary="예약 가능한 시간 조회")
+@router.get("/available-times", response_model=List[TimeSlotResponseSchema], summary="예약 가능한 시간 조회")
 def get_available_times_api(db: Session = Depends(get_db)):
     available_times = reservation_service.get_available_times(db)
 

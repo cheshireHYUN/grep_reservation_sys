@@ -1,6 +1,6 @@
 from typing import Optional
 from pydantic import Field
-from app.schemas.base import UTCBaseModel
+from app.schemas.base import UTCBaseModel, KSTBaseModel
 from datetime import datetime
 from enum import Enum
 
@@ -16,7 +16,7 @@ class ReservationStatus(str, Enum):
     CONFIRMED = "확정됨"
 
 # 예약 조회 or 예약 요청에 대한 응답 객체
-class ReservationResponseSchema(UTCBaseModel):
+class ReservationResponseSchema(KSTBaseModel):
     id: int
     name: str
     head_count: int

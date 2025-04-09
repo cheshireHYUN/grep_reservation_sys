@@ -6,7 +6,7 @@ from app.config.config import MAX_HEADCOUNT
 from app.config.config import MAX_HEADCOUNT
 from app.models.reservation_time_slot import ReservationTimeSlot
 from app.models.user import User
-from app.schemas.reservation import ReservationStatus, ReservationUpdateSchema
+from app.schemas.reservation import ReservationResponseSchema, ReservationStatus, ReservationUpdateSchema
 from fastapi import HTTPException
 from datetime import date, datetime
 
@@ -20,18 +20,18 @@ def get_all_reservations_for_admin(db: Session):
     ).all()
 
     return [
-        {
-            "id": reservation.id,
-            "user_id": reservation.user_id,
-            "user_email": user.email,
-            "user_name": user.name,
-            "head_count": reservation.head_count,
-            "status": ReservationStatus.CONFIRMED if reservation.is_confirmed else ReservationStatus.PENDING,
-            "start_time": reservation.start_time,
-            "end_time": reservation.end_time,
-            "created_at": reservation.created_at,
-        }
-        for reservation, user in results 
+        ReservationResponseSchema(
+            id=reservation.id,
+            user_id=reservation.user_id,
+            user_email=user.email,
+            user_name=user.name,
+            head_count=reservation.head_count,
+            status=ReservationStatus.CONFIRMED if reservation.is_confirmed else ReservationStatus.PENDING,
+            start_time=reservation.start_time,
+            end_time=reservation.end_time,
+            created_at=reservation.created_at,
+        )
+        for reservation, user in results
     ]
 
 # 예약 확정

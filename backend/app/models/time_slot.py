@@ -7,8 +7,8 @@ class TimeSlot(Base):
     __tablename__ = "time_slot"
 
     id = Column(Integer, primary_key=True, index=True)
-    start_time = Column(DateTime, nullable=False, index=True)
-    end_time = Column(DateTime, nullable=False, index=True)
+    start_time = Column(DateTime(timezone=True), nullable=False, index=True)
+    end_time = Column(DateTime(timezone=True), nullable=False, index=True)
     confirmed_headcount = Column(Integer, default=0, nullable=False)
 
     reservation_time_slots = relationship(

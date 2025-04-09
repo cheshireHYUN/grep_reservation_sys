@@ -3,12 +3,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 import app.crud.admin_reservation as admin_service
-from app.schemas.admin_reservation import AllReservationResponseSchema
+from app.schemas.admin_reservation import ReservationResponseSchema
 from app.schemas.reservation import ReservationUpdateSchema
 
 router = APIRouter()
 
-@router.get("", response_model=List[AllReservationResponseSchema], summary="전체 예약 리스트 조회")
+@router.get("", response_model=List[ReservationResponseSchema], summary="전체 예약 리스트 조회")
 def get_all_reservations_for_admin(db: Session = Depends(get_db)):
     return admin_service.get_all_reservations_for_admin(db)
 
