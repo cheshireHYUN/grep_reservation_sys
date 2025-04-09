@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm.exc import StaleDataError
-from sqlalchemy import and_, delete, select
+from sqlalchemy import and_, delete, func, select
 from app.crud.reservation import create_reservation_response
 from app.exception.api_exception import APIException
 from app.models import Reservation, TimeSlot
@@ -8,20 +8,36 @@ from app.config.config import MAX_HEADCOUNT
 from app.config.config import MAX_HEADCOUNT
 from app.models.reservation_time_slot import ReservationTimeSlot
 from app.models.user import User
+from app.schemas.pagination import Pagination
 from app.schemas.reservation import ReservationStatus, ReservationUpdateSchema
-from app.schemas.admin_reservation import ReservationResponseSchema
+from app.schemas.admin_reservation import PagingReservationResponseSchema, ReservationResponseSchema
 from datetime import date, datetime
 
 # 전체예약목록 조회
-def get_all_reservations_for_admin(db: Session):
+def get_all_reservations_for_admin(db: Session, page: int = 1, page_size: int = 10):
+    offset = (page - 1) * page_size
     results = db.execute(
         select(Reservation, User)
         .join(User, Reservation.user_id == User.id)
         .where(Reservation.deleted_at.is_(None))
         .order_by(Reservation.created_at)
+        .offset(offset)
+        .limit(page_size)
     ).all()
 
-    return [
+    total_count = db.execute(
+        select(func.count(Reservation.id))
+        .where(Reservation.deleted_at.is_(None))
+    ).scalar()
+
+    pagination = {
+        "page": page,
+        "page_size": page_size,
+        "total_items": total_count,
+        "total_pages": (total_count + page_size - 1) // page_size  # 총 페이지 수 계산
+    }
+
+    reservations = [
         ReservationResponseSchema(
             id=reservation.id,
             user_id=reservation.user_id,
@@ -35,6 +51,10 @@ def get_all_reservations_for_admin(db: Session):
         )
         for reservation, user in results
     ]
+
+    return PagingReservationResponseSchema(
+        reservations = reservations,
+        pagination = pagination )
 
 # 예약 확정
 def confirm_reservation_by_admin(db: Session, reservation_id: int):

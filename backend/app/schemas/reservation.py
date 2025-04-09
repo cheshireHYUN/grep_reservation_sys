@@ -1,9 +1,11 @@
-from typing import Optional
+from typing import List, Optional
 from pydantic import Field, model_validator
+from app.schemas.pagination import Pagination
 from app.schemas.base import UTCBaseModel, KSTBaseModel
 from datetime import datetime, timedelta
 from enum import Enum
 from app.config.config import MAX_HEADCOUNT
+from app.schemas.status import ReservationStatus
 
 # 예약 요청 객체
 class ReservationCreateSchema(UTCBaseModel):
@@ -23,10 +25,7 @@ class ReservationCreateSchema(UTCBaseModel):
         
         return self
 
-# 예약 상태
-class ReservationStatus(str, Enum):
-    PENDING = "보류중"
-    CONFIRMED = "확정됨"
+
 
 # 예약 조회 or 예약 요청에 대한 응답 객체
 class ReservationResponseSchema(KSTBaseModel):
@@ -37,6 +36,12 @@ class ReservationResponseSchema(KSTBaseModel):
     end_time: datetime = Field(..., description="종료시간 (KST)",example="2025-04-12T18:00:00+09:00")
     status: ReservationStatus = Field(..., description="예약 상태")
     created_at: datetime = Field(..., description="신청시간 (KST)",example="2025-04-08T12:00:00+09:00")
+
+# 예약 전체 조회
+class PagingReservationResponseSchema(KSTBaseModel):
+    pagination : Pagination = Field(description="페이징 정보")
+    reservations : List[ReservationResponseSchema]= Field(description="전체 예약 목록")
+
 
 # 예약 수정
 class ReservationUpdateSchema(UTCBaseModel):

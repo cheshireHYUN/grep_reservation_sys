@@ -18,7 +18,6 @@ def get_current_user(
 
     token = authorization.replace("Bearer ", "")
     decoded = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    print(decoded)
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])

@@ -1,35 +1,55 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, delete, select
+from sqlalchemy import and_, delete, func, select
 from app.exception.api_exception import APIException
 from app.models import Reservation, TimeSlot
 from app.config.config import MAX_HEADCOUNT
 from app.models.reservation_time_slot import ReservationTimeSlot
 from app.models.user import User
-from app.schemas.time_slot import TimeSlotResponseSchema
+from app.schemas.reservation import PagingReservationResponseSchema
+from app.schemas.time_slot import PaginationTimeSlotResponseSchema, TimeSlotResponseSchema
 from app.schemas.reservation import ReservationCreateSchema, ReservationResponseSchema, ReservationStatus, ReservationUpdateSchema
 from datetime import date, datetime, timedelta
 
 # 예약 가능한 시간을 조회
-def get_available_times(db: Session):
+def get_available_times(db: Session, page: int = 1, page_size: int = 10):
+    offset = (page - 1) * page_size
     three_days_later = datetime.now().date() + timedelta(days=3)
-    print(three_days_later)
+
     time_slots = db.execute(
         select(TimeSlot)
         .where(TimeSlot.start_time >= three_days_later)
         .order_by(TimeSlot.start_time)
+        .limit(page_size)
+        .offset(offset)
     ).scalars().all()
 
-    available_times = []
-    for time_slot in time_slots:
-        available_times.append(TimeSlotResponseSchema(
-            id = time_slot.id,
+    total_count = db.execute(
+        select(func.count(TimeSlot.id))
+        .where(Reservation.deleted_at.is_(None))
+    ).scalar()
+
+    pagination = {
+        "page": page,
+        "page_size": page_size,
+        "total_items": total_count,
+        "total_pages": (total_count + page_size - 1) // page_size  # 총 페이지 수 계산
+    }
+
+    available_times = [
+        TimeSlotResponseSchema(
+            id = time_slot.id, 
             start_time = time_slot.start_time,
             end_time = time_slot.end_time,
             is_reservable= MAX_HEADCOUNT > time_slot.confirmed_headcount,
-            available_headcount = MAX_HEADCOUNT - time_slot.confirmed_headcount
-        ))
-    
-    return available_times
+            available_headcount = MAX_HEADCOUNT - time_slot.confirmed_headcount,
+        )
+        for time_slot in time_slots
+    ]
+
+    return PaginationTimeSlotResponseSchema(
+        pagination = pagination,
+        time_slots = available_times
+    )
 
 
 # 예약 신청
@@ -52,7 +72,9 @@ def create_reservation(db: Session, req: ReservationCreateSchema, user:User):
 
 
 # 예약 목록 조회
-def get_reservations_by_user(db: Session, user: User):
+def get_reservations_by_user(db: Session, user: User, page: int = 1, page_size: int = 10):
+    offset = (page - 1) * page_size
+
     result = db.execute(
         select(Reservation)
         .where(
@@ -62,13 +84,36 @@ def get_reservations_by_user(db: Session, user: User):
             )
         )
         .order_by(Reservation.created_at)
+        .offset(offset)
+        .limit(page_size)
     ).scalars().all()
+
+    total_count = db.execute(
+        select(func.count(Reservation.id))
+        .where(
+            and_(
+                Reservation.user_id == user.id,
+                Reservation.deleted_at == None
+            )
+        )
+    ).scalar()
+
+    pagination = {
+        "page": page,
+        "page_size": page_size,
+        "total_items": total_count,
+        "total_pages": (total_count + page_size - 1) // page_size  # 총 페이지 수 계산
+    }
+
 
     reservations = []
     for reservation in result:
         reservations.append(create_reservation_response(reservation, user))
     
-    return reservations
+    return PagingReservationResponseSchema(
+        reservations = reservations,
+        pagination = pagination )
+
 
 # 예약 수정
 def update_reservation(

@@ -1,7 +1,9 @@
 from enum import Enum
 from datetime import datetime
+from typing import List
 
 from pydantic import Field
+from app.schemas.pagination import Pagination
 from app.schemas.base import KSTBaseModel
 
 # 예약 가능한 시간을 보여주는 객체
@@ -14,3 +16,8 @@ class TimeSlotResponseSchema(KSTBaseModel):
 
     class Config:
         from_attributes = True
+
+# 예약가능한 시간 리스트
+class PaginationTimeSlotResponseSchema(KSTBaseModel):
+    pagination : Pagination = Field(description="페이징 정보")
+    time_slots : List[TimeSlotResponseSchema] = Field(description="예약 가능한 시간 리스트")
