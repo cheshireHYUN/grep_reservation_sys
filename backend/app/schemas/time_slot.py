@@ -1,9 +1,9 @@
 from enum import Enum
-from pydantic import BaseModel
 from datetime import datetime
+from app.schemas.base import KSTBaseModel
 
-
-class TimeSlotSchema(BaseModel):
+# 예약가능한 시간을 보여주는 객체
+class TimeSlotResponseSchema(KSTBaseModel):
     id : int
     start_time: datetime
     end_time: datetime
