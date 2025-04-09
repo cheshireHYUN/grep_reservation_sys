@@ -1,7 +1,7 @@
 from typing import Optional
 from pydantic import Field, model_validator
 from app.schemas.base import UTCBaseModel, KSTBaseModel
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from app.config.config import MAX_HEADCOUNT
 
@@ -15,6 +15,12 @@ class ReservationCreateSchema(UTCBaseModel):
     def check_time_order(self):
         if self.end_time <= self.start_time:
             raise ValueError("종료시간은 시작시간보다 늦어야 합니다.")
+        
+        if self.start_time.minute != 0 or self.start_time.second != 0:
+            raise ValueError("시작시간은 정각이어야 합니다.")
+        if self.end_time.minute != 0 or self.end_time.second != 0:
+            raise ValueError("종료시간은 정각이어야 합니다.")
+        
         return self
 
 # 예약 상태
@@ -56,4 +62,8 @@ class ReservationUpdateSchema(UTCBaseModel):
         if self.start_time is not None and self.end_time is not None:
             if self.end_time <= self.start_time:
                 raise ValueError("종료시간은 시작시간보다 늦어야 합니다.")
+            if self.start_time.minute != 0 or self.start_time.second != 0:
+                raise ValueError("시작시간은 정각이어야 합니다.")
+            if self.end_time.minute != 0 or self.end_time.second != 0:
+                raise ValueError("종료시간은 정각이어야 합니다.")
         return self
