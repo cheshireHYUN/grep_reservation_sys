@@ -16,15 +16,15 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 3. 환경변수(.env) 추가
+### 3. backend/에 환경변수(.env) 추가
 ```bash
 DATABASE_URL=postgresql://postgres:{password}@localhost:5432/exam_reservation  # 로컬 DB URL
 ```
 
 ### 4. 실행 방법
-(1) 데이터베이스 마이그레이션
+(1) 데이터베이스 및 테스트 데이터 생성
 ```bash
-alembic upgrade head
+python create_tables.py  
 ```
 
 (2) 서버 실행
